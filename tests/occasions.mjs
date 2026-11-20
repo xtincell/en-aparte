@@ -124,7 +124,7 @@ try {
   await field('oc-size').selectOption('2');
   assert.match(await memories.innerText(),/10.?000 XOF/);
   await field('currency').selectOption('XAF');
-  assert.match(await memories.innerText(),/À vérifier/);
+  assert.equal(await memories.locator(':scope > .micro').textContent(),'À vérifier');
   assert.match(await memories.textContent(),/plafond en XAF ne couvre pas les dépenses en XOF/);
   await setBrief({...brief, occasion:'fete-a-distance', autre:'Abidjan'});
   assert.equal(await field('oc-programmes').locator('li[data-oc-offer]').count(),0,'Deux villes distinctes requises');
