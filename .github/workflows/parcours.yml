@@ -1,0 +1,19 @@
+name: Vérifier le parcours En aparté
+on:
+  push:
+    branches: [main]
+    paths: ['En-aparte.html', 'tests/parcours.mjs', '.github/workflows/parcours.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chrome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parcours dans Chrome
+        run: node tests/parcours.mjs
