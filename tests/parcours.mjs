@@ -17,11 +17,34 @@ try {
   const ready = () => page.waitForFunction(() => typeof window.EA_DNA?.select==='function' && document.querySelector('#r-count')?.textContent);
   const picks = () => page.locator('[data-choice]').evaluateAll(nodes => nodes.map(n=>n.dataset.choice));
   const app = new URL('../En-aparte.html', import.meta.url).href;
-  await page.goto(app); await ready();
+  await page.goto(app); await ready(); await click('oc-single');
   await select('day', '2026-11-21');
   assert.equal((await picks()).length, 3);
   await click('r-all');
-  assert.match(await evaluate('document.getElementById("catalogNote").textContent'), /^86 pistes/);
+  assert.match(await evaluate('document.getElementById("catalogNote").textContent'), /^84 pistes/);
+  const coverage=await evaluate(()=>{
+    const day='2026-11-21',city='Abidjan';
+    const eligible=allOptions.filter(c=>c.city===city && !EAday(c,day).out);
+    const groups=cards=>new Set(cards.map(c=>c.duplicateGroup || c.id)).size;
+    const postponed=allOptions.filter(c=>c.duplicateGroup==='maimouna');
+    const ranked=EA_DNA.select(allOptions,{city,day,intent:'culture',currency:'XOF'}).unique;
+    return {
+      total:allOptions.length, saturday:eligible.length, groups:groups(eligible),
+      established:groups(eligible.filter(c=>!c.dateUnverified)),
+      postponed:postponed.map(c=>c.id),
+      visible:eligible.concat(ranked.map(r=>r.d)).some(c=>c.duplicateGroup==='maimouna'),
+      dates:postponed.map(c=>[EAday(c,'2027-04-23').out,EAday(c,'2027-04-24').label,EAday(c,'2027-04-25').out,c.costValue])
+    };
+  });
+  assert.deepEqual([coverage.total,coverage.saturday,coverage.groups,coverage.established],[91,84,80,77]);
+  assert.deepEqual(coverage.postponed,['opt-002','opt-076']);
+  assert.equal(coverage.visible,false);
+  for(const [before,label,after,price] of coverage.dates){
+    assert.equal(before && after,true);assert.match(label,/24 avril 2027.*billetterie à confirmer/);assert.equal(price,null);
+  }
+  await page.locator('#q').fill('Biama');
+  assert.match(await page.locator('#catalogNote').textContent(),/^0 pistes?/);
+  await page.locator('#q').fill('');
   await click('r-picks');
   const initial = await picks(); await click('r-next');
   assert.ok((await picks()).every(id => !initial.includes(id)));
@@ -55,6 +78,22 @@ try {
   await select('r-target','1');
   assert.doesNotMatch(await evaluate('document.getElementById("r-results").textContent'), /indispensables du groupe/);
   await click('r-compare');assert.ok(await evaluate('document.getElementById("ep-pair-dialog").open'));
+  const pairOptions=side=>page.locator('#ep-pair-select-'+side+' option').evaluateAll(opts=>opts.map(o=>o.value));
+  for (const side of ['A','B']){
+    const other=side==='A'?'B':'A',id=side==='A'?'opt-002':'opt-076';
+    const hasBoth=ids=>['opt-002','opt-076'].every(id=>ids.includes(id));
+    const hasNeither=ids=>['opt-002','opt-076'].every(id=>!ids.includes(id));
+    assert.ok(hasNeither(await pairOptions(side)));
+    await select('ep-pair-date-'+side,'2027-04-24');
+    assert.ok(hasBoth(await pairOptions(side)));assert.ok(hasNeither(await pairOptions(other)));
+    await select('ep-pair-select-'+side,id);
+    assert.match(await page.locator('#ep-pair-detail-'+side).textContent(),/24 avril 2027/);
+    await select('ep-pair-date-'+side,'2026-11-21');
+    assert.ok(hasNeither(await pairOptions(side)));
+    assert.equal(await page.locator('#ep-pair-select-'+side).inputValue(),'');
+    assert.match(await page.locator('#ep-pair-detail-'+side).textContent(),/Aucun lieu choisi/);
+    assert.ok(await page.locator('#ep-pair-add').isDisabled());
+  }
   await evaluate('document.getElementById("ep-pair-dialog").close()');
   for (const width of [1280,390,320]) {
     await page.setViewportSize({width,height:850});
