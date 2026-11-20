@@ -16,7 +16,9 @@ jobs:
         with:
           node-version: '22'
       - name: Vérifier la composition des programmes
-        run: node tests/programmes.mjs
+        run: |
+          node tests/programmes.mjs
+          node tests/conflits.mjs
       - name: Installer le navigateur de test isolé
         run: |
           npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1

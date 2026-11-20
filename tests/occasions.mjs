@@ -111,6 +111,30 @@ try {
   assert.notEqual(await second.getAttribute('data-oc-offer'), initialB, 'Le moteur a réellement remplacé la seconde activité');
   assert.equal(await first.locator('[data-oc-lock]').getAttribute('aria-pressed'), 'true');
 
+  // A group quotation belongs to the party and date for which it was entered.
+  await setBrief({jour:'2026-11-28',ville:'Abidjan',participants:2,occasion:'retrouvailles',mode:'local',debut:'15:00',fin:'21:00',budget:12000,devise:'XOF',court:true});
+  const memories=program('souvenir-croise');
+  const choice=memories.locator('[data-oc-choice="0"]');
+  await openDetailsFor(choice);await choice.selectOption('opt-035');
+  const chooseQuote=memories.locator('[data-oc-offer="opt-035"] [data-oc-unit="XOF"]');
+  await openDetailsFor(chooseQuote);await chooseQuote.fill('9000');await memories.locator('[data-oc-quote]').first().click();
+  assert.match(await memories.innerText(),/9.?000 XOF/);
+  await field('oc-size').selectOption('6');
+  assert.equal(await memories.locator('li[data-oc-offer]').count(),0,'Devis pour deux invalidé au passage à six');
+  await field('oc-size').selectOption('2');
+  assert.match(await memories.innerText(),/10.?000 XOF/);
+  await field('currency').selectOption('XAF');
+  assert.match(await memories.innerText(),/À vérifier/);
+  assert.match(await memories.textContent(),/plafond en XAF ne couvre pas les dépenses en XOF/);
+  await setBrief({...brief, occasion:'fete-a-distance', autre:'Abidjan'});
+  assert.equal(await field('oc-programmes').locator('li[data-oc-offer]').count(),0,'Deux villes distinctes requises');
+  const profileEditor=page.locator('#oc-people [data-ocp="axis"]');
+  await openDetailsFor(profileEditor);
+  assert.equal(await profileEditor.locator('option').count(),24);
+  assert.equal(await profileEditor.locator('optgroup').count(),3);
+  await profileEditor.selectOption('musique');
+  await page.locator('#oc-people [data-ocp="apply"]').click();
+  assert.match(await field('oc-people').innerText(),/musique/i);
   await click('oc-single');
   await field('r-output').waitFor({state:'visible'});
   await click('oc-start');

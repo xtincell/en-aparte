@@ -239,4 +239,25 @@ test('Une fiche abondamment renseignée et favorable passe avant une fiche incon
   assert.equal(onlyMissing.status,'verify');assert.ok(onlyMissing.warnings.some(Boolean));
 });
 
+
+test('Le catalogue et les formats des deux villes conservent 24 axes expliqués',()=>{
+  const q={...brief,mode:'remote'},all=occasionOffers(allOptions,q);
+  assert.equal(all.length,102);
+  for(const o of all){
+    assert.equal(Object.keys(o.axes).length,24);
+    for(const [axis,trait] of Object.entries(o.axes)){
+      assert.ok(['source','deduit','inconnu','na'].includes(trait.kind),o.id+' '+axis);
+      assert.ok(trait.why,o.id+' '+axis+' sans provenance');
+    }
+  }
+});
+
+test('Changer le seul goût du partenaire modifie la première étape du rendez-vous',()=>{
+  const q={...brief,day:'2026-11-28',mode:'remote',endMin:1000},all=occasionOffers(allOptions,q);
+  const chosen=axis=>composeOccasion(OC_EDITION.find(o=>o.id==='date-a-deux'),
+    {...q,people:[{weights:{}},{weights:{[axis]:1}}]},all).find(v=>v.variantId==='faire-puis-parler').steps[0].id;
+  assert.equal(chosen('creation'),'maison-dessin');
+  assert.equal(chosen('jeu'),'maison-jeu');
+});
+
 console.log(cases.length+' contrôles du compositeur réussis.');

@@ -10,7 +10,7 @@
 <section class="oc-panel" id="oc-shelf" hidden aria-labelledby="oc-shelf-title"><h2 id="oc-shelf-title">Des idées pour chaque occasion</h2><div class="oc-fields"><label>Degré de spécificité<select id="oc-level"><option value="">Tous les niveaux</option><option value="1">Courant</option><option value="2">Célébration</option><option value="3">Contexte précis</option><option value="4">Très spécifique</option></select></label></div><label><input type="checkbox" id="oc-compatible"> Correspond au format, au nombre de participants et au rythme choisis</label><p class="sub" id="oc-filter-context"></p><div class="oc-library" id="oc-tiles"></div></section>
 <section class="oc-panel" id="oc-form" aria-labelledby="oc-form-title"><h2 id="oc-form-title">Préparer votre programme</h2>
 <div class="oc-fields"><label>Occasion<select id="oc-occasion"></select></label><label>Format<select id="oc-mode"><option value="local">Sur place</option><option value="remote">À distance</option></select></label><label id="oc-partner-label" hidden>Autre lieu<select id="oc-partner"><option>Douala</option><option>Abidjan</option></select></label><label>Participants<select id="oc-size"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label><label>Rythme souhaité<select id="oc-energy"><option value="any">Au choix</option><option value="soft">En douceur</option><option value="active">Dynamique</option></select></label><label>Début dans votre ville<input id="oc-from" type="time" value="14:00" required></label><label>Fin dans votre ville<input id="oc-until" type="time" value="18:00" required></label></div>
-<p id="oc-window" class="sub"></p><details><summary>Budget, trajets et ambiance</summary><div class="oc-fields"><label id="oc-allocation-label">Budget entre les lieux<select id="oc-allocation"><option value="single">Suivre le plafond dans la devise choisie</option><option value="split">Ventiler une enveloppe entre XOF et XAF</option></select></label><label id="oc-share-label" hidden>Part prévue en XOF (%)<input id="oc-share" type="number" min="0" max="100" value="50"></label><label>Ambiance<select id="oc-audience"><option value="any">Au choix</option><option value="private">En petit comité</option><option value="festive">Festive</option></select></label><label>Trajet entre lieux (min)<input type="number" id="oc-transfer" min="0" max="360" placeholder="À vérifier"></label><label>Frais par trajet, en monnaie locale<input type="number" id="oc-fare" min="0" placeholder="Inconnus"></label></div><p id="oc-envelope" class="sub"></p></details>
+<p id="oc-window" class="sub"></p><details><summary>Budget, trajets et ambiance</summary><div class="oc-fields"><label id="oc-allocation-label">Budget entre les lieux<select id="oc-allocation"><option value="single">Suivre le plafond dans la devise choisie</option><option value="split" selected>Répartir une enveloppe entre XOF et XAF</option></select></label><label id="oc-share-label" hidden>Part prévue en XOF (%)<input id="oc-share" type="number" min="0" max="100" value="50"></label><label>Ambiance<select id="oc-audience"><option value="any">Au choix</option><option value="private">En petit comité</option><option value="festive">Festive</option></select></label><label>Trajet entre lieux (min)<input type="number" id="oc-transfer" min="0" max="360" placeholder="À vérifier"></label><label>Frais par trajet, en monnaie locale<input type="number" id="oc-fare" min="0" placeholder="Inconnus"></label></div><p id="oc-envelope" class="sub"></p></details>
 <div id="oc-people" class="choice"></div><label><input id="oc-short" type="checkbox"> Garder seulement les étapes essentielles</label>
 <div class="oc-actions"><button type="button" id="oc-compose" class="primary">Composer les programmes</button></div>
 <details><summary>Reprendre un brief</summary><p class="sub">Copiez ou collez une préparation pour reprendre ses paramètres. Les profils du carnet restent sur cet appareil.</p><label>Préparation<textarea id="oc-paste" rows="3" spellcheck="false"></textarea></label><div class="oc-actions"><button id="oc-load">Utiliser le brief</button><button id="oc-copy">Générer mon brief à copier</button></div><p role="status" id="oc-brief-status"></p></details></section>
@@ -154,8 +154,59 @@ function localStamp(r){let m=minutes(r.time),d=Date.parse((r.day||'')+'T00:00:00
 function utcStamp(r){let n=localStamp(r);if(n===null)return null;if(r.zone==='Africa/Abidjan')return n;if(r.zone==='Africa/Douala')return n-60;return null}
 function pairStatus(pair){const rs=rows.filter(r=>r.pair===pair);if(rs.length!==2)return 'Appariement incomplet.';let [a,b]=rs,ta=utcStamp(a),tb=utcStamp(b);if(ta===null||tb===null||!valid(a.duration)||!valid(b.duration)||Number(a.duration)<=0||Number(b.duration)<=0)return 'Compatibilité à préciser : renseignez dates, heures locales et durées des deux moments.';let start=Math.max(ta,tb),end=Math.min(ta+Number(a.duration),tb+Number(b.duration));if(end<=start)return 'Aucun recouvrement prévu entre les créneaux saisis. Ajustez les heures pour un moment en parallèle.';let fmt=n=>new Date(n*60000).toISOString().slice(0,16).replace('T',' à ');return `Recouvrement prévu : ${money(end-start)} min, du ${fmt(start)} au ${fmt(end)} UTC. Compatibilité théorique des horaires saisis seulement ; ouvertures, disponibilité et possibilité d’appel à confirmer.`}
 function estimateLabel(r){return r.amount===''?'Coût inconnu':r.estimated?'Repère indicatif repris, pas un devis. Modifiez ou effacez le montant.':'Prévision saisie, non confirmée.'}
-function warnings(){let out=[];rows.forEach((r,i)=>{if(!r.day)out.push(`${r.name} : jour non conservé ; renseignez sa date locale.`);else if(r.briefDay&&ctx.day&&r.briefDay!==ctx.day)out.push(`${r.name} reste au ${r.day}, pour la date du ${r.briefDay}. La nouvelle date du brief ne déplace aucune étape.`);let a=localStamp(r);if(a===null||!valid(r.duration)||Number(r.duration)===0)return;for(let j=0;j<i;j++){let q=rows[j],b=localStamp(q);if(r.pair&&r.pair===q.pair)continue;if(r.city!==q.city||b===null||!valid(q.duration))continue;if(a<b+Number(q.duration)&&b<a+Number(r.duration))out.push(`${r.name} et ${q.name} se chevauchent à ${r.city||'lieu non renseigné'}.`)}if(minutes(r.time)+Number(r.duration)>1440)out.push(`${r.name} finit le lendemain de son jour local ${r.day}.`)});return out.length?`<div class="sh-alert" role="status">${out.map(t=>`<p>${e(t)}</p>`).join('')}<small>Trajets et temps de préparation non calculés.</small></div>`:''}
-function sharedClock(r){return r.partnerCity?(r.time?otherLocal(r.day,r.time,r.city,r.partnerCity)+' à '+r.partnerCity:'Horaire libre · '+r.partnerCity):'';}
+function sameActivity(a,b){
+  return Boolean((a.id && a.id===b.id)||(a.duplicateGroup && a.duplicateGroup===b.duplicateGroup));
+}
+function occupiedCities(r){
+  const places=[r.city||''];
+  if(r.partnerCity && r.sync!=='libre' && r.partnerCity!==r.city)places.push(r.partnerCity);
+  return places;
+}
+function overlap(a,b){
+  if(sameActivity(a,b)||(a.pair && a.pair===b.pair))return '';
+  if(!valid(a.duration)||!valid(b.duration)||Number(a.duration)<=0||Number(b.duration)<=0)return '';
+  const citiesB=occupiedCities(b),common=occupiedCities(a).filter(city=>citiesB.includes(city));
+  if(!common.length)return '';
+  let startA=utcStamp(a),startB=utcStamp(b);
+  if(startA===null||startB===null){
+    // Older or free-form rows with the same local reference can still be compared.
+    if(a.city!==b.city||a.zone!==b.zone)return '';
+    startA=localStamp(a);startB=localStamp(b);
+  }
+  if(startA===null||startB===null||startA>=startB+Number(b.duration)||startB>=startA+Number(a.duration))return '';
+  const where=common.filter(Boolean).join(' et à ')||'un lieu non renseigné';
+  return `${a.name} et ${b.name} se chevauchent à ${where}.`;
+}
+function conflicts(batch){
+  if(!Array.isArray(batch))return [];
+  const prior=rows.slice(),messages=new Set();
+  for(const entry of batch){
+    const item=entry?.item,opts=entry?.opts??{};
+    if(!item||!item.name||typeof opts!=='object'||prior.some(other=>sameActivity(item,other)))continue;
+    const candidate=makeRow(item,opts,'');
+    for(const other of prior){
+      const message=overlap(candidate,other);
+      if(message)messages.add(message);
+    }
+    prior.push(candidate);
+  }
+  return [...messages];
+}
+function warnings(){
+  const out=new Set();
+  rows.forEach((r,i)=>{
+    if(!r.day)out.add(`${r.name} : jour non conservé ; renseignez sa date locale.`);
+    else if(r.briefDay&&ctx.day&&r.briefDay!==ctx.day)out.add(`${r.name} reste au ${r.day}, pour la date du ${r.briefDay}. La nouvelle date du brief ne déplace aucune étape.`);
+    if(localStamp(r)===null||!valid(r.duration)||Number(r.duration)<=0)return;
+    for(let j=0;j<i;j++){
+      const message=overlap(r,rows[j]);
+      if(message)out.add(message);
+    }
+    if(minutes(r.time)+Number(r.duration)>1440)out.add(`${r.name} finit le lendemain de son jour local ${r.day}.`);
+  });
+  return out.size?`<div class="sh-alert" role="status">${[...out].map(t=>`<p>${e(t)}</p>`).join('')}<small>Vérifiez les trajets entre les étapes que vous ajoutez séparément.</small></div>`:'';
+}
+function sharedClock(r){if(r.partnerCity&&r.sync==='libre')return 'Lecture ou réponse libre à '+r.partnerCity+(r.time?' · envoi prévu à '+r.time+' à '+r.city:'');return r.partnerCity?(r.time?otherLocal(r.day,r.time,r.city,r.partnerCity)+' à '+r.partnerCity:'Horaire libre · '+r.partnerCity):'';}
 function rowHTML(r,i){return `<article class="sh-row" data-key="${e(r.key)}"><div class="sh-rowhead"><span class="sh-num">${i+1}</span><h3>${e(r.name)}</h3><button type="button" data-action="remove" aria-label="Retirer ${e(r.name)}">×</button></div><p class="sh-meta">${e(r.city||'Lieu libre')} · ${e(r.zone||'UTC')} · ${e(r.day||'Jour à préciser')} ${r.pair?'· Moment apparié':''}</p>${r.pair?`<p class="sh-pair-status" data-pair="${e(r.pair)}" role="status">${e(pairStatus(r.pair))}</p>`:''}${r.party?'<p class="sh-meta">'+e(r.party)+'</p>':''}${r.partnerCity?'<p class="sh-meta" data-shared="'+e(r.key)+'">'+e(sharedClock(r))+'</p>':''}<div class="sh-fields"><label>Jour local<input type="date" data-field="day" value="${e(r.day||'')}"></label><label>Heure locale<input type="time" data-field="time" value="${e(r.time)}"></label><label>Durée prévue (min)<input type="number" min="1" max="1440" step="1" data-field="duration" value="${e(r.duration)}" placeholder="À préciser"></label><label>Montant prévu (${e(r.currency)})<input type="number" min="0" step="any" data-field="amount" value="${e(r.amount)}" placeholder="Inconnu"></label><small class="sh-estimate" data-estimate="${e(r.key)}">${e(estimateLabel(r))}</small><label>Note<input data-field="note" value="${e(r.note)}" maxlength="500" placeholder="Conditions, transport…"></label></div>${r.ref!==null&&r.ref!==undefined?`<button type="button" class="sh-reference" data-action="reference">Reprendre le repère : ${money(r.ref)} ${e(r.currency)}</button><small>Repère indicatif publié, pas un devis complet.</small>`:'<small>Sans repère chiffré suffisamment établi.</small>'}<div class="sh-tools"><button type="button" data-action="up" ${i===0?'disabled':''} aria-label="Monter ${e(r.name)}">↑ Monter</button><button type="button" data-action="down" ${i===rows.length-1?'disabled':''} aria-label="Descendre ${e(r.name)}">↓ Descendre</button>${r.url?`<a href="${e(r.url)}" target="_blank" rel="noopener noreferrer">Source ↗</a>`:''}</div></article>`}
 function markup(){return `<div class="sh-top"><span class="sh-kicker">VOTRE JOURNÉE · ${e(ctx.day||'Jour à choisir')}</span><h2>Mon programme <span class="sh-count">${rows.length}</span></h2></div><div class="sh-sum">${summary()}</div><div class="sh-warning">${warnings()}</div>${rows.length?rows.map(rowHTML).join(''):'<div class="sh-empty">Une journée se compose un moment à la fois.<br><small>Ajoutez une carte pour commencer. Aucun choix n’est imposé.</small></div>'}<div class="sh-footer"><button type="button" data-action="free">+ Moment ou frais libres</button><button type="button" data-action="sort" ${rows.length<2?'disabled':''}>Trier par jour et heure locale</button><button type="button" data-action="export" ${!rows.length?'disabled':''}>Exporter le programme</button><details><summary>Répartition par activité</summary><div class="sh-breakdown">${breakdown()}</div></details><p class="sh-storage">${storage?'Enregistré dans ce navigateur. Exportez avant de changer d’appareil.':'Stockage indisponible. Exportez pour conserver votre programme.'}</p><small>Rien n’est réservé ni envoyé. ${rows.some(r=>r.pair)?'Le tri local ne synchronise pas des fuseaux différents.':''}</small></div>`}
 function breakdown(){let data={};rows.forEach(r=>{const k=(r.family||'Moments & frais libres')+' · '+r.currency;const x=data[k]||(data[k]={sum:0,unknown:0});if(valid(r.amount))x.sum+=Number(r.amount);else x.unknown++});return Object.entries(data).map(([k,v])=>`<p>${e(k)} : ${money(v.sum)}${v.unknown?` + ${v.unknown} coût(s) à préciser`:''}</p>`).join('')||'<p>La répartition apparaîtra à partir de vos choix.</p>'}
@@ -165,16 +216,16 @@ function mutate(){save();draw();changed();document.dispatchEvent(new Event('ea-p
 function exportText(){let t=['EN APARTÉ — MON PROGRAMME',ctx.day,'Catalogue local daté de novembre 2026 ; aucune disponibilité en direct.',ctx.limits?`Enveloppes prévues : ${Object.entries(ctx.limits).filter(([,v])=>v!=null).map(([u,v])=>money(v)+' '+u).join(' + ')}`:`Budget global : ${ctx.budget||'non renseigné'} ${ctx.currency}`,'',...rows.map((r,i)=>`${i+1}. ${r.name}\n${r.city} · ${r.zone} · ${r.day||'Jour à préciser'} · ${r.time||'Heure à préciser'} · ${r.duration||'?'} min${r.pair?' · Moment apparié':''}\nPrévision : ${valid(r.amount)?money(Number(r.amount))+' '+r.currency:'coût inconnu/invalide'}\n${estimateLabel(r)}\n${[r.party,sharedClock(r)].filter(Boolean).join(' · ')}\n${r.pair?pairStatus(r.pair):''}\n${r.briefDay&&r.briefDay!==ctx.day?'Attention : étape conservée pour la date du '+r.briefDay:''}\n${r.note||''}\n${r.url||''}`),'',...Object.entries(totals()).map(([c,v])=>`${money(v.sum)} ${c} renseignés ; ${v.unknown} coûts inconnus ; ${v.invalid} montants invalides.`),'Devises non converties. Frais non renseignés non inclus. Rien n’est réservé.'].join('\n');let u=URL.createObjectURL(new Blob([t],{type:'text/plain;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download='En-aparte-programme.txt';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 function bind(root){root.addEventListener('input',ev=>{let f=ev.target.dataset.field,r=find(ev.target.closest('[data-key]')?.dataset.key);if(!r||!f)return;r[f]=ev.target.value;if(f==='amount')r.estimated=false;if(f==='day')r.briefDay=ctx.day;ev.target.setCustomValidity((f==='amount'&&r[f]!==''&&!valid(r[f]))?'Saisissez un montant positif ou zéro.':'');update(root)});root.addEventListener('change',()=>{let other=root===host?body:host;if(other)other.innerHTML=markup()});root.addEventListener('click',ev=>{const b=ev.target.closest('[data-action]');if(!b)return;let action=b.dataset.action,key=b.closest('[data-key]')?.dataset.key,i=rows.findIndex(r=>r.key===key),r=rows[i];if(action==='remove'){rows.splice(i,1);if(r.pair)rows.forEach(x=>{if(x.pair===r.pair)x.pair=null})}else if(action==='up'&&i>0)[rows[i-1],rows[i]]=[rows[i],rows[i-1]];else if(action==='down'&&i<rows.length-1)[rows[i+1],rows[i]]=[rows[i],rows[i+1]];else if(action==='reference'){r.amount=String(r.ref);r.estimated=true}else if(action==='export'){exportText();return}else if(action==='sort')rows.sort((a,b)=>(localStamp(a)??Infinity)-(localStamp(b)??Infinity));else if(action==='free'){let name=prompt('Nom du moment ou des frais (ex. Transport)');if(!name?.trim())return;add({id:'free-'+Date.now(),name:name.trim(),city:'',currency:ctx.currency,family:'Moments & frais libres'},{free:true});return}else return;mutate()})}
 function has(item){return rows.some(r=>r.id===item.id||(item.duplicateGroup&&r.duplicateGroup===item.duplicateGroup))}
-function makeRow(item,opts){
+function makeRow(item,opts,key='s'+Date.now()+'-'+(++seq)){
   const ref=Number.isFinite(item.costValue)&&item.costValue>=0?item.costValue:null;
   const hasAmount=opts.amount!==undefined,amount=hasAmount?opts.amount:ref;
   return {
-    key:'s'+Date.now()+'-'+(++seq),id:item.id,name:item.name,city:item.city||'',
+    key,id:item.id,name:item.name,city:item.city||'',
     zone:item.city==='Douala'?'Africa/Douala':item.city==='Abidjan'?'Africa/Abidjan':'UTC (à préciser)',
     currency:item.currency||ctx.currency,day:opts.day||ctx.day||'',briefDay:opts.briefDay||ctx.day||'',
     amount:amount==null?'':String(amount),estimated:hasAmount?opts.estimated===true:ref!==null,ref,
     duplicateGroup:item.duplicateGroup||null,family:item.family||'',time:opts.time||'',duration:opts.duration||'',
-    note:opts.note||'',party:opts.party||'',partnerCity:opts.partnerCity||'',
+    note:opts.note||'',party:opts.party||'',partnerCity:opts.partnerCity||'',sync:opts.sync||item.sync||'',
     url:/^https?:\/\//.test(item.url||'')?item.url:'',pair:opts.pair||null
   };
 }
@@ -202,7 +253,7 @@ function addPair(a,b,o={}){
   ]);
 }
 function init(o){items=o.items||[];changed=o.onChange||(()=>{});ctx={...ctx,...o};try{let saved=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(saved))rows=saved.filter(r=>r&&typeof r.name==='string'&&typeof r.key==='string').slice(0,200)}catch(_){storage=false}let style=document.createElement('style');style.textContent=`.sh-top h2{font:normal 30px Georgia,serif;color:#244c41;margin:8px 0 18px}.sh-kicker{font-size:10px;letter-spacing:.11em}.sh-count{font:14px system-ui;background:#e2e8db;border-radius:20px;padding:4px 9px}.sh-summary{background:#e8eddf;padding:16px;border-radius:8px;font-size:13px}.sh-summary p{margin:7px 0}.sh-summary strong{font-size:20px}.sh-row{border-top:1px solid #d7d5c8;margin-top:20px;padding-top:16px}.sh-rowhead{display:flex;align-items:center;gap:9px}.sh-rowhead h3{font:normal 19px Georgia,serif;flex:1;margin:0}.sh-num{background:#244c41;color:white;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;font-size:12px;flex:none}.sh-pair-status{font-size:12px;line-height:1.55;background:#e8eddf;padding:9px;border-radius:4px}.sh-estimate{grid-column:1/-1}.sh-meta{font-size:11px;color:#5b6257;margin:8px 0}.sh-fields{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}.sh-fields label{font-size:11px;min-width:0}.sh-fields input{box-sizing:border-box;display:block;width:100%;min-width:0;border:1px solid #bbbfb0;background:#fffdf8;color:#202723;padding:9px 6px;border-radius:5px;margin-top:4px;font:14px system-ui}.sh-fields input:invalid{border-color:#a7412d}.sh-row button,.sh-footer button{border:1px solid #b7c1af;background:#fffdf8;color:#244c41;border-radius:5px;padding:8px;font:12px system-ui;cursor:pointer;min-height:35px}.sh-row button:disabled,.sh-footer button:disabled{opacity:.4;cursor:default}.sh-reference{display:block;text-align:left;margin-bottom:5px}.sh-row small,.sh-summary small,.sh-footer small{font-size:11px;line-height:1.5;color:#5b6257}.sh-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:12px}.sh-tools a{font-size:12px;margin-left:auto;color:#244c41}.sh-footer{display:flex;flex-direction:column;gap:8px;margin-top:22px}.sh-footer details{font-size:12px;padding:10px 0}.sh-storage{font-size:11px;color:#5b6257;line-height:1.5}.sh-alert{color:#943b28;font-size:12px;background:#fae7d8;padding:8px;border-radius:4px;margin-top:8px}.sh-empty{padding:30px 8px;text-align:center;font:21px Georgia,serif;line-height:1.5}.sh-empty small{display:block;font:13px system-ui;margin-top:14px;color:#5b6257}.sh-dialog{box-sizing:border-box;border:1px solid #c6c7b8;border-radius:12px;background:#fbf8ef;color:#202723;width:min(480px,calc(100vw - 18px));max-height:94dvh;padding:20px}.sh-dialog::backdrop{background:#152a24aa}.sh-close{position:sticky;top:0;float:right;background:#244c41;color:white;border:0;border-radius:5px;padding:10px;font:13px system-ui;z-index:2}.sh-dialog button:focus-visible,.sh-dialog input:focus-visible,#side button:focus-visible,#side input:focus-visible{outline:3px solid #a7412d;outline-offset:2px}`;document.head.append(style);dialog=document.createElement('dialog');dialog.className='sh-dialog';dialog.setAttribute('aria-label','Mon programme');dialog.innerHTML='<button type="button" class="sh-close">Fermer</button><div class="sh-body"></div>';document.body.append(dialog);body=dialog.querySelector('.sh-body');dialog.querySelector('.sh-close').onclick=()=>dialog.close();bind(body)}
-window.Sheet={init,totals,summary,render(container){host=container;bind(host);draw()},setContext(o){ctx={...ctx,...o};draw()},add,addPair,addPlan,has,count:()=>rows.length,open(){body.innerHTML=markup();dialog.showModal()}};
+window.Sheet={init,totals,summary,conflicts,render(container){host=container;bind(host);draw()},setContext(o){ctx={...ctx,...o};draw()},add,addPair,addPlan,has,count:()=>rows.length,open(){body.innerHTML=markup();dialog.showModal()}};
 })();
 </script><script>/* En aparté: optional, source-preserving comparison. No network requests. */
 (function () {
@@ -633,7 +684,7 @@ $('q').oninput=()=>{page=1;renderCards()};$('favOnly').onclick=()=>{onlyFav=!onl
 ['city','day','budget','currency'].forEach(k=>{$(k).value=s[k];$(k).addEventListener(k==='budget'?'input':'change',()=>{if(!$(k).validity.valid||k==='day'&&!$(k).value){$(k).reportValidity();return} s[k]=$(k).value;if(k==='city'&&s.budget===''){s.currency=s.city==='Douala'?'XAF':'XOF';$('currency').value=s.currency}$('unit').textContent=s.currency;Sheet.setContext({day:s.day,budget:s.budget,currency:s.currency});refresh()})});
 $('unit').textContent=s.currency;$('r-compare').onclick=()=>openPairs({items:allOptions,day:s.day,addPair:(a,b,o)=>Sheet.addPair(a,b,o)});$('mobilePlan').onclick=()=>Sheet.open();Sheet.init({items:allOptions,day:s.day,budget:s.budget,currency:s.currency,onChange:renderCards});Sheet.render($('side'));redrawRecommendations=connectRecommendations();chips();renderCards();
 </script><script id="oc-editorial">
-// Occasions publiques, classées par spécificité croissante (1 à 4).
+// Modèles publics par degré de spécificité.
 const OC_EDITION = [
   {
     "id": "date-a-deux",
@@ -1089,7 +1140,8 @@ const OC_EDITION = [
         2,
         6
       ],
-      "energy": "any"
+      "energy": "any",
+      "distinctCities": true
     },
     "variants": [
       {
@@ -1349,7 +1401,6 @@ const OC_EDITION = [
     ]
   }
 ];
-
 </script>
 <script id="oc-adapter">
 function occasionOffers(items, brief) {
@@ -1386,6 +1437,52 @@ function occasionOffers(items, brief) {
   const datedStarts={1:1110,3:960,75:960,82:540};
   const datedWindows={74:[540,null],78:[780,null],79:[900,1140],80:[1200,1740]};
   const weekDay = new Date(brief.day+'T12:00Z').getUTCDay();
+  function interestAxes(d,format,venue) {
+    // These axes describe what the participant actually does during this offer.
+    const keys=['creation','jeu','musique','cinema','arts','pleinAir','table','detente','actif','anime'];
+    const axes=Object.fromEntries(keys.map(k=>[k,unknown('Ce goût n’est pas documenté pour l’activité proposée.')]));
+    const mark=(key,value,kind,why)=>{axes[key]=axis(value,kind,why);};
+    const label='« '+d.name+' »';
+    if(!venue){
+      const primary={'maison-discussion':'table','maison-musique':'musique','maison-dessin':'creation',
+        'maison-jeu':'jeu','maison-film':'cinema','maison-photo':'pleinAir','moment-pause':'detente'}[d.id];
+      if(primary)mark(primary,2,'source',d.evidence||d.idea);
+      if(d.id==='maison-photo')mark('actif',1,'source','La consigne prévoit une promenade. Chacun en choisit la longueur.');
+      // The finite instructions below describe the activity itself, without making claims about the participants' surroundings.
+      if(d.id==='maison-film')mark('creation',0,'source','L’activité est de regarder un épisode. Aucun geste de fabrication ne fait partie de cette consigne.');
+      if(d.id==='maison-dessin')mark('cinema',0,'source','Cette consigne consiste à dessiner sur un thème choisi.');
+      return axes;
+    }
+    const n=Number(d.id.slice(4)),card=label+' · '+d.cat+'.';
+    if(format==='atelier'||format==='patisserie')mark('creation',2,d.family==='Création'?'source':'deduit',card);
+    if(format==='galerie'||[3,8].includes(n))mark('arts',2,'source',card);
+    if(n===75)mark('arts',2,'deduit','Seconde fiche du spectacle de théâtre et de patrimoine Le Royaume Ashanti.');
+    if(n===29||n===74)mark('arts',1,'deduit','Le lieu ou le marché peut permettre une découverte d’art ou d’artisanat. Contenu à vérifier.');
+    if(format==='jeux'||format==='enferme'||[31,32,38,39,90].includes(n))mark('jeu',2,'source',card);
+    if(n===73)mark('jeu',1,'source',d.evidence+' Créneau de jeu samedi à vérifier.');
+    if(n===88)mark('jeu',1,'source','La fiche propose notamment le paintball, au choix parmi plusieurs activités.');
+    if([2,76].includes(n))mark('musique',2,'source','Le concert est le cœur de la fiche '+label+'.');
+    if(n===1)mark('musique',2,'source',d.evidence);
+    if(n===50||n===78)mark('musique',1,'source',card+' La musique partage le programme avec une autre activité.');
+    if(format==='cinema')mark('cinema',2,'source',card);
+    if(n===1)mark('cinema',1,'deduit','Clôture de festival de cinéma avec un concert annoncé. Projection à vérifier.');
+    if([40,44,45].includes(n))mark('pleinAir',1,'deduit','La sortie se fait en bateau. Possibilité de prendre place à l’air libre à vérifier.');
+    if([41,42,43,46,67,68,69,88].includes(n)){
+      const official=n===88;
+      mark('pleinAir',2,official?'source':'deduit',official?card+' '+(d.evidence||d.price):card+' La proposition porte sur un milieu naturel, une balade ou une traversée.');
+    }
+    if([48,49,50,70,86,87,91].includes(n))mark('table',2,'source',card+' '+d.price);
+    if(format==='soin')mark('detente',2,'source',card);
+    if(n===62)mark('detente',1,'deduit','La fiche propose un accès piscine. La manière d’en profiter dépend de chacun.');
+    if(format==='soin'&&/massage|soin du visage/i.test(d.name))mark('actif',0,'source','Cette prestation individuelle consiste à recevoir un soin ou un massage.');
+    if([35,37].includes(n)||n===30)mark('actif',1,'deduit','La pratique de '+label+' alterne courts mouvements et temps d’attente.');
+    if([68,69].includes(n))mark('actif',2,'deduit',card+' Le format implique une participation physique, à préciser selon le parcours.');
+    if(n===88)mark('actif',2,'source','Le lieu propose notamment le VTT, l’équitation et le paintball. '+d.price);
+    if(n===81)mark('actif',0,'deduit','Cette fiche présente une compétition à regarder. La participation sportive du public n’est pas établie.');
+    if([2,76,78,80].includes(n))mark('anime',2,'deduit',card+' Concert, animations ou soirée : ambiance animée probable, affluence réelle inconnue.');
+    if(n===1||n===50)mark('anime',1,'deduit','Une partie de la sortie comporte un moment musical. Ambiance à reconfirmer.');
+    return axes;
+  }
   function priceFor(d,n) {
     // Waki's stored catalogue reference is a minimum for a private group, not a unit price.
     if(n===17||n===18){
@@ -1424,7 +1521,7 @@ function occasionOffers(items, brief) {
     if(n===40||n===44)condition.push('Choisir les gares, le sens et le tarif du trajet.');
     if(n===73)condition.push('Le programme du festival ne donne pas de créneau précis le samedi.');
     if(n===1)condition.push('La clôture comprend un concert.');
-    const axes={...p.axes};
+    const axes={...p.axes,...interestAxes(d,p.format,true)};
     axes.conversation=p.format==='cinema'||p.format==='spectacle'||p.format==='fort'
       ?axis(0,'deduit','Concert ou spectacle. Un échange suivi pendant la séance est peu probable.')
       :p.format==='table'?axis(2,'deduit','Le format à table se prête à la conversation. Bruit et affluence à vérifier.')
@@ -1472,6 +1569,7 @@ function occasionOffers(items, brief) {
     const why=d.evidence||d.idea,condition=d.condition;
     const labels=d.profile?.axes||{};
     const axes=Object.fromEntries(Object.keys(EA_DNA.axes).map(a=>[a,labels[a]||unknown('Dépend du lieu choisi par les participants.')]));
+    Object.assign(axes,interestAxes(d,d.profile?.format||d.id,false));
     if(!d.profile){
       for(const key of ['effort','marche','assise','flex'])axes[key]=axis(2,'source','La consigne permet de rester assis et d’interrompre à tout moment.');
       axes.sucre=food?unknown('Chaque personne choisit son repas et sa boisson.'):axis(null,'na','Le format ne demande aucune consommation.');
@@ -1513,7 +1611,8 @@ function occasionOffers(items, brief) {
 <script id="oc-engine">
 function composeOccasion(occasion, brief, offers) {
   const currencies = ['XOF', 'XAF'];
-  const labels = {effort:'peu d’effort', marche:'peu de marche', assise:'place assise', calme:'ambiance calme', abri:'à l’abri', flex:'départ flexible', simple:'logistique simple', sucre:'option peu sucrée', duo:'sortie à deux', groupe:'activité de groupe', actif:'activité physique', anime:'ambiance animée', conversation:'pouvoir discuter', intimite:'intimité', asynchrone:'participation en différé', prepaLegere:'peu de préparation'};
+  const labels = {effort:'peu d’effort', marche:'peu de marche', assise:'place assise', calme:'ambiance calme', abri:'à l’abri', flex:'départ flexible', simple:'logistique simple', sucre:'option peu sucrée', duo:'sortie à deux', groupe:'activité de groupe', actif:'activité physique', anime:'ambiance animée', conversation:'pouvoir discuter', intimite:'intimité', asynchrone:'participation en différé', prepaLegere:'peu de préparation',
+    creation:'activité créative', jeu:'jeux', musique:'musique', cinema:'cinéma', arts:'arts et expositions', pleinAir:'activité en plein air', table:'moment à table', detente:'détente'};
   const zones = {Abidjan:0, Douala:60};
   const finite = Number.isFinite;
   const unique = list => [...new Set(list.filter(Boolean))];
@@ -1542,6 +1641,7 @@ function composeOccasion(occasion, brief, offers) {
   if (!minutes(begin) || !minutes(brief.endMin) || begin >= 1440 || finish <= begin || finish - begin > 1440) invalid.push('Choisissez une plage horaire comprise entre une minute et une journée.');
   if (!/^\d{4}-\d\d-\d\d$/.test(brief.day || '') || !finite(Date.parse(brief.day+'T12:00Z'))) invalid.push('Précisez le jour de la sortie.');
   if (filters.mode && filters.mode !== 'any' && filters.mode !== brief.mode) invalid.push('Cette occasion demande un autre mode de participation.');
+  if (filters.distinctCities && city===partner) invalid.push("Cette occasion réunit deux villes différentes. Choisissez la deuxième ville.");
   if (filters.size && (size < filters.size[0] || size > filters.size[1])) invalid.push('Le nombre de personnes ne correspond pas à cette occasion.');
   if (filters.energy && filters.energy !== 'any' && brief.energy && brief.energy !== 'any' && brief.energy !== filters.energy) invalid.push('Le rythme choisi ne correspond pas à cette occasion.');
   if (currencies.some(u => limits[u] !== null && (!finite(limits[u]) || limits[u] < 0))) invalid.push('Renseignez un plafond positif ou nul dans chaque devise utilisée.');
@@ -1807,13 +1907,22 @@ function composeOccasion(occasion, brief, offers) {
 function initOccasionPeople(root,onChange){
   'use strict';
   const storageKey='en-aparte-carnet-participants-v1';
-  const axes={
-    effort:'Peu d’effort physique',marche:'Peu de marche ou de station debout',assise:'Pouvoir s’asseoir',
-    calme:'Une ambiance calme',abri:'Être à l’abri',flex:'Pouvoir écourter',simple:'Peu de logistique',
-    sucre:'Une option peu sucrée si on mange',duo:'Un moment adapté à deux',groupe:'Une activité de groupe',
-    conversation:'Pouvoir discuter',intimite:'Un cadre intime',asynchrone:'Participer en différé',
-    prepaLegere:'Peu de préparation'
+  const axisGroups={
+    'Goûts':{
+      creation:'Créer de ses mains',jeu:'Jouer',musique:'Écouter ou partager de la musique',cinema:'Voir un film',
+      arts:'Découvrir des œuvres ou du patrimoine',pleinAir:'Passer du temps en plein air',table:'Partager un repas',detente:'Prendre un moment de détente'
+    },
+    'Ambiance et confort':{
+      effort:'Peu d’effort physique',actif:'Faire une activité physique',calme:'Une ambiance calme',anime:'Une ambiance animée',
+      marche:'Peu de marche ou de station debout',assise:'Pouvoir s’asseoir',abri:'Être à l’abri',conversation:'Pouvoir discuter',
+      intimite:'Un cadre intime',sucre:'Une option peu sucrée si on mange'
+    },
+    'Organisation':{
+      flex:'Pouvoir écourter',simple:'Peu de logistique',duo:'Un moment adapté à deux',groupe:'Une activité de groupe',
+      asynchrone:'Participer en différé',prepaLegere:'Peu de préparation'
+    }
   };
+  const axes=Object.assign({},...Object.values(axisGroups));
   const roleNames={organizer:'Organisateur',guest:'Participant',honoree:'Personne à célébrer'};
   const ruleNames={prefer:'Préférence déclarée',must:'Indispensable déclaré',guess:'Supposition à vérifier',off:'Sans importance ce jour-là'};
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -1877,7 +1986,7 @@ function initOccasionPeople(root,onChange){
       '<p class="sub">Une préférence du jour prime sur une habitude. Une supposition reste souple.</p>'+
       (habits?'<p><strong>Habitudes</strong></p><ul>'+habits+'</ul>':'')+
       (today?'<p><strong>Pour cette occasion</strong></p><ul>'+today+'</ul>':'')+
-      '<div class="choice-controls">'+control('axis','Critère',Object.entries(axes).map(([k,v])=>option(k,v)).join(''))+
+      '<div class="choice-controls">'+control('axis','Critère',Object.entries(axisGroups).map(([title,group])=>'<optgroup label="'+esc(title)+'">'+Object.entries(group).map(([k,v])=>option(k,v)).join('')+'</optgroup>').join(''))+
       control('scope','Appliquer à',option('today','Cette occasion')+option('habits','Ses habitudes'))+
       control('rule','Importance et provenance',Object.entries(ruleNames).map(([k,v])=>option(k,v)).join(''))+
       '<button type="button" data-ocp="apply">Appliquer le critère</button></div>'+
@@ -1955,7 +2064,7 @@ function initOccasionPeople(root,onChange){
 function occasionDNA(day) {
  const offers=occasionOffers(allOptions,{day,city:'Abidjan',partnerCity:'Douala',mode:'remote',size:1});
  const records=new Map(offers.map(o=>[o.id,o]));
- return {schema:'en-aparte-activity-dna/3',jourDeLecture:day,axes:{...EA_DNA.axes,conversation:'Possibilité de discuter',intimite:'Intimité',asynchrone:'Participation en différé',prepaLegere:'Préparation légère'},levels:EA_DNA.levels, catalogue:allOptions.map(d=>{
+ return {schema:'en-aparte-activity-dna/3',jourDeLecture:day,axes:{...EA_DNA.axes,conversation:'Possibilité de discuter',intimite:'Intimité',asynchrone:'Participation en différé',prepaLegere:'Préparation légère',creation:'Créer ou fabriquer',jeu:'Jouer',musique:'Musique',cinema:'Cinéma',arts:'Arts et patrimoine',pleinAir:'Plein air',table:'Partager un repas',detente:'Détente',actif:'Activité physique',anime:'Ambiance animée'},levels:EA_DNA.levels, catalogue:allOptions.map(d=>{
    const base=EA_DNA.profile(d),o=records.get(d.id);
    return {...base,axes:o.axes,facets:o.facets,usages:o.pools,dateStatus:o.dateStatus,source:o.source,sourceTarif:d.price,sourceHoraire:d.when,report:d.reschedule||null};
  })};
@@ -1973,6 +2082,7 @@ function occasionDNA(day) {
   const modeName={local:'Sur place',remote:'À distance',any:'Sur place ou à distance'};
   const energyName={any:'Rythme au choix',soft:'En douceur',active:'Rythme dynamique'};
   const states={possible:'Réalisable selon les paramètres',verify:'À vérifier',impossible:'Incompatible avec vos paramètres'};
+  const tasteLabels={creation:'Créer ou fabriquer',jeu:'Jouer',musique:'Musique',cinema:'Cinéma',arts:'Arts et patrimoine',pleinAir:'Plein air',table:'Partager un repas',detente:'Détente',actif:'Activité physique',anime:'Ambiance animée'};
   const evidence={source:'Documenté',deduit:'Déduit du format',inconnu:'Inconnu',na:'Sans objet'};
   const amount=n=>Number(n).toLocaleString('fr-FR');
   const minutes=v=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v)?Number(v.slice(0,2))*60+Number(v.slice(3)):NaN;
@@ -2003,10 +2113,10 @@ function occasionDNA(day) {
     return {city:el('city').value,partnerCity:val('mode')==='remote'?val('partner'):el('city').value,mode:val('mode'),size:Number(val('size')),day:el('day').value,startMin:minutes(val('from')),endMin:minutes(val('until')),energy:val('energy'),audience:val('audience'),people:people?.getPeople()||[],budget:Object.fromEntries(units.map(u=>[u,caps[u]===null?null:Math.max(0,caps[u]-(used[u]?.sum||0))])),transferMin:numValue('transfer'),transferCost:numValue('fare'),omitOptional:field('short').checked,limits:caps};
   }
   function compatible(o,b){
-    const f=o.filters;return (f.mode==='any'||f.mode===b.mode)&&b.size>=f.size[0]&&b.size<=f.size[1]&&(f.energy==='any'||b.energy==='any'||f.energy===b.energy);
+    const f=o.filters;return (f.mode==='any'||f.mode===b.mode)&&(!f.distinctCities||b.city!==b.partnerCity)&&b.size>=f.size[0]&&b.size<=f.size[1]&&(f.energy==='any'||b.energy==='any'||f.energy===b.energy);
   }
   function filterText(o){
-    const f=o.filters;return [modeName[f.mode],(f.size[0]===f.size[1]?f.size[0]:f.size.join(' à '))+' personne'+(f.size[1]>1?'s':''),energyName[f.energy]].join(' · ');
+    const f=o.filters;return [f.distinctCities?'À distance dans deux villes':modeName[f.mode],(f.size[0]===f.size[1]?f.size[0]:f.size.join(' à '))+' personne'+(f.size[1]>1?'s':''),energyName[f.energy]].join(' · ');
   }
   function gallery(){
     const b=current(), shown=OC_EDITION.filter(o=>(!val('level')||o.level===Number(val('level')))&&(!field('compatible').checked||compatible(o,b)));
@@ -2016,6 +2126,7 @@ function occasionDNA(day) {
   function selectModel(adapt){
     const f=model().filters;
     if(f.mode!=='any')field('mode').value=f.mode;
+    if(f.distinctCities&&val('partner')===el('city').value)field('partner').value=cities.find(c=>c!==el('city').value);
     if(f.energy!=='any')field('energy').value=f.energy;
     if(adapt)field('size').value=String(Math.min(f.size[1],Math.max(f.size[0],Number(val('size')))));
     edits={};quoted={};people.setSize(Number(val('size')));
@@ -2043,7 +2154,7 @@ function occasionDNA(day) {
   }
   function facets(o){
     if(!o)return '';
-    const criteria=Object.entries(o.axes||{}), labels={...Object.fromEntries(Object.entries(EA_DNA.axes).map(([id,v])=>[id,typeof v==='string'?v:(v.label||id)])),conversation:'Conversation',intimite:'Intimité',asynchrone:'Participation en différé',prepaLegere:'Préparation légère'};
+    const criteria=Object.entries(o.axes||{}), labels={...Object.fromEntries(Object.entries(EA_DNA.axes).map(([id,v])=>[id,typeof v==='string'?v:(v.label||id)])),conversation:'Conversation',intimite:'Intimité',asynchrone:'Participation en différé',prepaLegere:'Préparation légère',...tasteLabels};
     return '<details><summary>Critères, conditions et sources</summary><dl class="facts">'+Object.values(o.facets||{}).map(f=>'<dt>'+esc(f.label)+'</dt><dd>'+esc(f.value)+' · '+esc(evidence[f.kind]||f.kind)+'. '+esc(f.why)+'</dd>').join('')+criteria.map(([id,v])=>'<dt>'+esc(labels[id]||id)+'</dt><dd>'+esc(evidence[v.kind]||v.kind)+' · '+esc(v.why||'À préciser.')+'</dd>').join('')+'</dl>'+(safeURL(o.source)?'<a href="'+esc(o.source)+'" target="_blank" rel="noopener noreferrer">Consulter la source de l’activité ↗</a>':'<p>'+esc(o.source||'Source non renseignée')+'</p>')+'</details>';
   }
   function quoteForm(s){
@@ -2069,18 +2180,19 @@ function occasionDNA(day) {
     }).join('')+'</details>';
   }
   function renderPlan(p){
+    const clashes=p.steps.length?Sheet.conflicts(batchFor(p)):[];
     const e=settings(p.variantId),canReset=Object.keys(e.locks).length||e.skipIds.length;
     const used=units.filter(u=>p.steps.some(s=>Object.hasOwn(s.costs,u)||Object.hasOwn(s.transferCosts,u)));
     const costs=used.map(u=>amount(p.totals[u])+' '+u).join(' + ');
-    return '<article class="oc-program" data-variant="'+esc(p.variantId)+'"><span class="micro">'+esc(states[p.status])+'</span><h3>'+esc(p.title)+'</h3><p>'+esc(p.pitch)+'</p>'+(p.steps.length?'<p><strong>Montants renseignés</strong> '+esc(costs||'0')+(p.unknownCosts?' · '+p.unknownCosts+' poste(s) à chiffrer':'')+'</p><ol>'+p.steps.map((s,i)=>stage(s,p,i)).join('')+'</ol>':'')+(p.reasons.length?'<p class="oc-mini">'+esc(p.reasons.join(' '))+'</p>':'')+(p.warnings.length?'<details class="oc-warn"'+(!p.steps.length?' open':'')+'><summary>'+(!p.steps.length?'Pourquoi cette variante ne tient pas':'Points à vérifier')+'</summary><ul>'+p.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul></details>':'')+manualSteps(p)+'<div class="oc-actions">'+(p.steps.length?'<button class="primary" data-oc-plan-add>Ajouter ce programme</button>':'')+(canReset?'<button data-oc-reset>Rétablir les choix du moteur</button>':'')+'</div></article>';
+    return '<article class="oc-program" data-variant="'+esc(p.variantId)+'"><span class="micro">'+esc(states[p.status])+'</span><h3>'+esc(p.title)+'</h3><p>'+esc(p.pitch)+'</p>'+(p.steps.length?'<p><strong>Montants renseignés</strong> '+esc(costs||'0')+(p.unknownCosts?' · '+p.unknownCosts+' poste(s) à chiffrer':'')+'</p><ol>'+p.steps.map((s,i)=>stage(s,p,i)).join('')+'</ol>':'')+(p.reasons.length?'<p class="oc-mini">'+esc(p.reasons.join(' '))+'</p>':'')+(p.warnings.length?'<details class="oc-warn"'+(!p.steps.length?' open':'')+'><summary>'+(!p.steps.length?'Pourquoi cette variante ne tient pas':'Points à vérifier')+'</summary><ul>'+p.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul></details>':'')+manualSteps(p)+(clashes.length?'<p class="oc-warn"><strong>Créneau déjà occupé.</strong> '+esc(clashes.join(' '))+'</p>':'')+'<div class="oc-actions">'+(p.steps.length?'<button class="primary" data-oc-plan-add>'+(clashes.length?'Ajouter malgré le chevauchement':'Ajouter ce programme')+'</button>':'')+(canReset?'<button data-oc-reset>Rétablir les choix du moteur</button>':'')+'</div></article>';
   }
   function redraw(){
     if(loading||!people)return;
     brief=current();info(brief);
     if(active==='inspire'){gallery();return}
     if(active==='single')return;
-    const fields=['day','budget','oc-from','oc-until','oc-transfer','oc-fare',...(val('allocation')==='split'?['oc-share']:[])];
-    if(fields.some(k=>!el(k).validity.valid)||(val('allocation')==='split'&&val('share')==='')){
+    const fields=['day','budget','oc-from','oc-until','oc-transfer','oc-fare',...(brief.mode==='remote'&&brief.city!==brief.partnerCity&&val('allocation')==='split'?['oc-share']:[])];
+    if(fields.some(k=>!el(k).validity.valid)||(brief.mode==='remote'&&brief.city!==brief.partnerCity&&val('allocation')==='split'&&val('share')==='')){
       plans=[];field('summary').textContent='Vérifiez les champs du jour, des horaires et des montants.';field('programmes').replaceChildren();return;
     }
     const over=units.filter(u=>brief.limits[u]!==null&&(Sheet.totals()[u]?.sum||0)>brief.limits[u]);
@@ -2090,6 +2202,13 @@ function occasionDNA(day) {
     plans=composeOccasion(o,brief,offers);
     if(Object.keys(edits).some(k=>Object.keys(edits[k].locks).length||edits[k].skipIds.length)){
       plans=plans.map(p=>{const custom=settings(p.variantId);return (Object.keys(custom.locks).length||custom.skipIds.length)?composeOccasion({...o,variants:o.variants.filter(v=>v.id===p.variantId)},{...brief,...custom},offers)[0]:p});
+    }
+    if(el('budget').value!==''){
+      for(const p of plans){
+        if(!p.steps.length)continue;
+        const untracked=units.filter(u=>brief.limits[u]===null&&p.steps.some(s=>[s.costs,s.transferCosts].some(cost=>Object.hasOwn(cost,u)&&cost[u]!==0)));
+        if(untracked.length){p.status='verify';p.warnings.unshift('Le plafond en '+el('currency').value+' ne couvre pas les dépenses en '+untracked.join(' et ')+'. '+(brief.mode==='remote'&&brief.city!==brief.partnerCity?'Répartissez le budget entre les deux villes pour contrôler les deux devises.':'Choisissez la devise du lieu pour appliquer un plafond à ces dépenses.'));}
+      }
     }
     const count=plans.filter(p=>p.steps.length).length;
     field('summary').textContent=o.title+' · '+count+' proposition'+(count===1?'':'s')+' compatible'+(count===1?'':'s')+' avec le créneau. '+(brief.people.every(p=>!Object.keys(p.weights).length)?'Vous pouvez préciser ce qui compte pour chaque personne.':'Les critères des participants sont pris en compte.')+' '+field('envelope').textContent;
@@ -2117,7 +2236,7 @@ function occasionDNA(day) {
       for(const [u,n] of Object.entries(s.costs)){
         const main=u===s.currency;if(!main&&n===0)continue;
         const city=main?s.city:placeFor(u),start=s.startMin+shift(city)-shift(brief.city);
-        rows.push({item:{id:main?(original?.id||unique):'part-'+unique+'-'+u,name:main?s.title:'Part en '+u+' · '+s.title,city,currency:u,costValue:n,duplicateGroup:main?original?.duplicateGroup:null,family:main?(original?.family||'Moment à partager'):'Part du budget',url:s.source},opts:{...(quoted[s.id]?{amount:n??'',estimated:false}:{}),day:dateAt(brief.day,start),time:main?clock(start):'',duration:main?s.duration:'',party:s.scope==='individual'?'Moment individuel':brief.size+' participant(s)',partnerCity:main?s.partnerCity:'',note:[s.role,s.condition,main?'':'Montant de la même étape, dans la deuxième devise.'].filter(Boolean).join(' · ')}});
+        rows.push({item:{id:main?(original?.id||unique):'part-'+unique+'-'+u,name:main?s.title:'Part en '+u+' · '+s.title,city,currency:u,costValue:n,duplicateGroup:main?original?.duplicateGroup:null,family:main?(original?.family||'Moment à partager'):'Part du budget',url:s.source},opts:{sync:model().variants.find(v=>v.id===p.variantId)?.steps.find(r=>r.role===s.role)?.sync==='async'?'libre':offers.find(o=>o.id===s.id)?.sync||'',...(quoted[s.id]?{amount:n??'',estimated:false}:{}),day:dateAt(brief.day,start),time:main?clock(start):'',duration:main?s.duration:'',party:s.scope==='individual'?'Moment individuel':brief.size+' participant(s)',partnerCity:main?s.partnerCity:'',note:[s.role,s.condition,main?'':'Montant de la même étape, dans la deuxième devise.'].filter(Boolean).join(' · ')}});
       }
     }
     return rows;
@@ -2148,8 +2267,8 @@ function occasionDNA(day) {
   field('tiles').onclick=e=>{const id=e.target.closest('[data-oc-use]')?.dataset.ocUse;if(!id)return;field('occasion').value=id;selectModel(true);changePage('start');field('occasion').focus()};
   field('occasion').onchange=()=>{selectModel(true);redraw()};
   for(const id of ['level','compatible'])field(id).onchange=gallery;
-  for(const id of ['mode','partner','size','energy','from','until','allocation','share','audience','transfer','fare','short'])field(id).addEventListener('change',()=>{if(id==='size')people.setSize(Number(val('size')));if(id==='mode'||id==='partner')quoted={};redraw()});
-  for(const id of ['city','day','budget','currency'])el(id).addEventListener(id==='budget'?'input':'change',()=>{if(loading)return;if(id==='city'){field('partner').value=cities.find(c=>c!==el('city').value);quoted={}}redraw()});
+  for(const id of ['mode','partner','size','energy','from','until','allocation','share','audience','transfer','fare','short'])field(id).addEventListener('change',()=>{if(id==='size')people.setSize(Number(val('size')));if(['mode','partner','size'].includes(id))quoted={};redraw()});
+  for(const id of ['city','day','budget','currency'])el(id).addEventListener(id==='budget'?'input':'change',()=>{if(loading)return;if(id==='day')quoted={};if(id==='city'){field('partner').value=cities.find(c=>c!==el('city').value);quoted={}}redraw()});
   field('compose').onclick=()=>{redraw();field('result-title').focus()};
   field('load').onclick=()=>{try{importBrief()}catch(error){field('brief-status').textContent=error instanceof SyntaxError?'Le texte collé doit être un objet JSON valide.':error.message}};
   field('copy').onclick=()=>{field('paste').value=JSON.stringify(portable(),null,2);field('paste').focus();field('paste').select();field('brief-status').textContent='Le texte est sélectionné. Copiez-le pour reprendre la préparation.'};
