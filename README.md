@@ -73,3 +73,9 @@ Le format « quelques exemples puis un ajustement » s’inspire des travaux sur
 Le contrôle de parcours vérifie le démarrage, les dates, les doublons, les alternatives, les préférences opposées, les deux devises, l’ajout et la sauvegarde, les moments communs et le passage au jour suivant. Les 20 tests de composition se lancent avec `node tests/programmes.mjs`. Les 17 vérifications de chevauchement se lancent avec `node tests/conflits.mjs`. Les tests `tests/parcours.mjs` et `tests/occasions.mjs` ouvrent le véritable HTML dans Chromium, y compris aux largeurs 320 et 390 pixels. La configuration de GitHub Actions installe Playwright et enchaîne les trois suites.
 
 Le compositeur explore des enchaînements dans le créneau, réserve du temps pour les trajets et compare les montants aux enveloppes. Avec un trajet non saisi, il propose une marge indicative à vérifier. Une fourchette d’ouverture est distincte de la durée d’une visite. Cette représentation du temps s’appuie sur les fenêtres de visite et les temps de transit. [Documentation OR-Tools sur les fenêtres horaires](https://developers.google.com/optimization/routing/vrptw).
+
+## Mise en ligne
+
+La version publique est servie sur [en-aparte.powerupgraders.com](https://en-aparte.powerupgraders.com) par Coolify. Le `Dockerfile` place uniquement `En-aparte.html` dans une image nginx ; `deploy/nginx.conf` ajoute la politique de sécurité du contenu, HSTS et la revalidation à chaque visite. Toute autre adresse répond 404.
+
+À chaque modification de `main`, GitHub Actions lance les quatre suites sur le fichier, construit l’image, rejoue les deux parcours Chromium dans le conteneur, puis demande à Coolify de déployer ce commit précis. Rien n’est mis en ligne si un test échoue. Pour lancer les parcours contre une autre adresse : `EA_URL=http://localhost:8080/ node tests/parcours.mjs`.
