@@ -6,6 +6,7 @@ try {
   const page = await browser.newPage({viewport:{width:1280,height:850}});
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type()==='error' && /Content Security Policy/i.test(message.text())) errors.push(message.text()); });
   const evaluate = expression => page.evaluate(expression);
   const click = id => page.locator('#'+id).click();
   async function select(id,value) {
@@ -16,7 +17,7 @@ try {
   }
   const ready = () => page.waitForFunction(() => typeof window.EA_DNA?.select==='function' && document.querySelector('#r-count')?.textContent);
   const picks = () => page.locator('[data-choice]').evaluateAll(nodes => nodes.map(n=>n.dataset.choice));
-  const app = new URL('../En-aparte.html', import.meta.url).href;
+  const app = process.env.EA_URL || new URL('../En-aparte.html', import.meta.url).href;
   await page.goto(app); await ready(); await click('oc-single');
   await select('day', '2026-11-21');
   assert.equal((await picks()).length, 3);

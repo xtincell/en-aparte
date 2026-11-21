@@ -1,15 +1,17 @@
-name: Vérifier le parcours En aparté
+name: Vérifier et déployer En aparté
 on:
   push:
     branches: [main]
-    paths: ['En-aparte.html', 'tests/*.mjs', '.github/workflows/parcours.yml']
+    paths: ['En-aparte.html', 'tests/*.mjs', 'Dockerfile', '.dockerignore', 'deploy/**', '.github/workflows/parcours.yml']
+  pull_request:
+    paths: ['En-aparte.html', 'tests/*.mjs', 'Dockerfile', '.dockerignore', 'deploy/**', '.github/workflows/parcours.yml']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   chrome:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,3 +29,65 @@ jobs:
         run: |
           node tests/parcours.mjs
           node tests/occasions.mjs
+      - name: Construire et démarrer l'image de production
+        run: |
+          docker build -t en-aparte .
+          docker run -d --name en-aparte -p 8080:80 en-aparte
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8080/ && exit 0; sleep 0.5; done
+          docker logs en-aparte; exit 1
+      - name: Vérifier les adresses servies et les en-têtes
+        run: |
+          headers=$(curl -fsSI http://localhost:8080/)
+          for name in content-security-policy strict-transport-security x-content-type-options referrer-policy cache-control; do
+            echo "$headers" | grep -qi "^$name:" || { echo "::error::En-tête manquant : $name"; exit 1; }
+          done
+          for path in /README.md /Dockerfile /tests/parcours.mjs /index.html /50x.html; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$path")
+            [ "$code" = 404 ] || { echo "::error::$path répond $code au lieu de 404"; exit 1; }
+          done
+      - name: Parcours dans le conteneur, CSP active
+        env:
+          EA_URL: http://localhost:8080/
+        run: |
+          node tests/parcours.mjs
+          node tests/occasions.mjs
+
+  deployer:
+    needs: chrome
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    concurrency:
+      group: deploiement-production
+      cancel-in-progress: false
+    env:
+      COOLIFY_URL: https://coolify.powerupgraders.com
+      APP_UUID: clnpxf7zvathrk7citwopyog
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+    steps:
+      - name: Déployer le commit vérifié sur Coolify
+        run: |
+          if [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::error::Le secret COOLIFY_TOKEN n'est pas défini : rien n'a été déployé."
+            exit 1
+          fi
+          api() { curl -fsS --retry 3 --retry-all-errors -H "Authorization: Bearer $COOLIFY_TOKEN" -H 'Content-Type: application/json' "$@"; }
+          # Coolify construit exactement le commit testé, même si main a avancé entre-temps.
+          api -X PATCH "$COOLIFY_URL/api/v1/applications/$APP_UUID" -d "{\"git_commit_sha\":\"$GITHUB_SHA\"}" > /dev/null
+          deployment=$(api -X POST "$COOLIFY_URL/api/v1/deploy?uuid=$APP_UUID" | jq -r '.deployments[0].deployment_uuid // empty')
+          [ -n "$deployment" ] || { echo "::error::Coolify n'a pas créé de déploiement."; exit 1; }
+          echo "Déploiement $deployment pour ${GITHUB_SHA::7}"
+          for i in $(seq 1 120); do
+            status=$(api "$COOLIFY_URL/api/v1/deployments/$deployment" | jq -r '.status')
+            case "$status" in
+              finished) echo "Déploiement terminé."; exit 0 ;;
+              failed|cancelled*) echo "::error::Déploiement $status : $COOLIFY_URL"; exit 1 ;;
+            esac
+            sleep 5
+          done
+          echo "::error::Le déploiement n'est pas terminé après 10 minutes."; exit 1
+      - name: Vérifier le site en ligne
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://en-aparte.powerupgraders.com/)
+          [ "$code" = 200 ] || { echo "::error::Le site répond $code"; exit 1; }
+          curl -fsSI https://en-aparte.powerupgraders.com/ | grep -qi '^content-security-policy:' || { echo "::error::La CSP n'est pas servie en ligne"; exit 1; }

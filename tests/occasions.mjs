@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const browser = await chromium.launch();
-const app = new URL('../En-aparte.html', import.meta.url).href;
+const app = process.env.EA_URL || new URL('../En-aparte.html', import.meta.url).href;
 const page = await browser.newPage({ viewport: { width: 1280, height: 920 } });
 page.setDefaultTimeout(6000);
 
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+page.on('console', message => { if (message.type() === 'error' && /Content Security Policy/i.test(message.text())) errors.push(message.text()); });
 const field = id => page.locator('#' + id);
 const program = variant => field('oc-programmes').locator('.oc-program[data-variant="' + variant + '"]');
 const firstOffer = card => card.locator('li[data-oc-offer]').first();
